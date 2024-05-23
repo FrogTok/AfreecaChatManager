@@ -1,4 +1,5 @@
 내가 쓸라고 만든 아프리카 채팅 매니저 프로그램.
+
 채팅 긁어오는 기능 이거보고 만듬
 https://github.com/cha2hyun/afreecatv-chat-crawler
 
