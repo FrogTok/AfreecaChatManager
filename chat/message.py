@@ -12,7 +12,7 @@ from chat.constants import (
     POONG_MESSAGE,
     SUBSCRIBE_PERIOD_MESSAGE,
 )
-from chat.requests import get_player_live
+from chat.requests import get_bno, get_player_live
 from chat.queue import ChatQueue, MemberChatQueue
 
 SEPARATOR = "+" + "-" * 70 + "+"
@@ -27,9 +27,13 @@ class MessageLoop(threading.Thread):
         self.member_chat_queue = MemberChatQueue()
         self.stop_event = threading.Event()
 
-    def start(self):
-        loop = asyncio.get_event_loop()
-        self.future = loop.run_in_executor(None, self.run)
+    # def start(self):
+    #     try:
+    #         loop = asyncio.get_running_loop()
+    #     except RuntimeError:
+    #         loop = asyncio.new_event_loop()
+    #         asyncio.set_event_loop(loop)
+    #     self.future = loop.run_in_executor(None, self.run)
 
     def run(self):
         ssl_context = self.create_ssl_context()
@@ -166,7 +170,7 @@ class MessageLoop(threading.Thread):
                         except asyncio.CancelledError:
                             break
 
-                tasks = [receive_messages(), ping()]
+                tasks = [asyncio.create_task(receive_messages()), asyncio.create_task(ping())]
 
                 done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
@@ -178,8 +182,17 @@ class MessageLoop(threading.Thread):
         except Exception as e:
             self.chat_queue.enqueue_message(f"  ERROR: 웹소켓 연결 오류 - {e}")
             print(f"  ERROR: 웹소켓 연결 오류 - {e}")
-            if not self.stop_event.is_set():
-                self.chat_queue.enqueue_message("  재접속 시도중...")
-                print("  재접속 시도중...")
-                await asyncio.sleep(5)
-                self.connect_to_chat(ssl_context)
+            return
+            # if not self.stop_event.is_set():
+            #     self.chat_queue.enqueue_message("  재접속 시도중...")
+            #     print("  재접속 시도중...")
+            #     await asyncio.sleep(5)
+            #     self.connect_to_chat(ssl_context)
+
+
+if __name__ == "__main__":
+    bid = "243000"
+    bno = get_bno(bid)
+    message_loop = MessageLoop(bid=bid, bno=bno)
+    message_loop.start()
+    message_loop.join()

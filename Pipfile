@@ -7,9 +7,10 @@ name = "pypi"
 requests = "*"
 websockets = "*"
 selenium = "*"
+pyside6 = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.8"
-python_full_version = "3.8.0"
+python_version = "3.12"
+python_full_version = "3.12.4"
