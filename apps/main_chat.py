@@ -1,11 +1,16 @@
 import asyncio
+import os
 import threading
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QScrollArea, QWidget, QLabel
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon, QPixmap
+from requests import HTTPError
 from chat.queue import ChatQueue
 from chat.message import MessageLoop
-from chat.requests import get_bno
+from chat.requests import download_image, get_bno
 import sys
+
+from utils import get_root_directory_path
 
 
 class ChatApp(QMainWindow):
@@ -13,7 +18,16 @@ class ChatApp(QMainWindow):
         super().__init__()
         self.chat_queue = ChatQueue()
 
-        self.setWindowTitle("Chat Application")
+        self.setWindowTitle("아프리카 채팅매니저")
+        self.resize(600, 400)
+        try:
+            image_data = download_image(f"https://profile.img.afreecatv.com/LOGO/{bid[:2]}/{bid}/{bid}.jpg")
+            pixmap = QPixmap()
+            pixmap.loadFromData(image_data)
+            self.setWindowIcon(QIcon(pixmap))
+        except HTTPError:
+            icon_path = os.path.join(get_root_directory_path(), "assets/afreeca.ico")
+            self.setWindowIcon(QIcon(icon_path))
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -60,7 +74,7 @@ class ChatApp(QMainWindow):
                 break
             label = QLabel(chat)
             label.setWordWrap(True)
-            label.setStyleSheet("background-color: lightgrey; padding: 5px;")
+            label.setStyleSheet("background-color: lightgrey; padding: 3px;")
             line_list.append(label)
 
         if line_list:

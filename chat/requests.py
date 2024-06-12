@@ -69,3 +69,9 @@ def get_player_live(bno, bid):
     except KeyError as e:
         print(f"  ERROR: 응답에서 필요한 데이터를 찾을 수 없습니다: {e}")
         return None
+
+
+def download_image(url):
+    response = requests.get(url)
+    response.raise_for_status()  # 요청에 실패하면 예외를 발생시킴
+    return response.content
