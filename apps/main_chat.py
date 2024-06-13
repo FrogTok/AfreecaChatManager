@@ -1,8 +1,8 @@
 import asyncio
 import os
 import threading
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QScrollArea, QWidget, QLabel
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QScrollArea, QWidget, QLabel, QListView
+from PySide6.QtCore import Qt, QTimer, QMetaObject, Slot, QStringListModel
 from PySide6.QtGui import QIcon, QPixmap
 from requests import HTTPError
 from chat.queue import ChatQueue
@@ -33,17 +33,13 @@ class ChatApp(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
 
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.layout.addWidget(self.scroll_area)
-
-        self.chat_frame = QWidget()
-        self.chat_layout = QVBoxLayout(self.chat_frame)
-        self.chat_layout.setAlignment(Qt.AlignTop)
-        self.chat_frame.setLayout(self.chat_layout)
-        self.scroll_area.setWidget(self.chat_frame)
+        self.chat_view = QListView()
+        self.chat_model = QStringListModel()
+        self.chat_view.setModel(self.chat_model)
+        self.layout.addWidget(self.chat_view)
 
         self.max_messages = 10000
+        self.message_buffer = []
 
         self.message_thread = MessageThread(bid=bid, bno=bno)
         self.message_thread.start()
@@ -54,9 +50,7 @@ class ChatApp(QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_chat)
-        self.timer.start(1000)
-
-        self.chat_frame.layout().setSizeConstraint(QVBoxLayout.SetMinimumSize)
+        self.timer.start(100)  # 100ms마다 업데이트
 
     def run_asyncio(self, loop):
         asyncio.set_event_loop(loop)
@@ -64,46 +58,42 @@ class ChatApp(QMainWindow):
 
     async def fetch_messages(self):
         while not self.message_thread.stop_event.is_set():
-            await asyncio.sleep(1)
+            try:
+                await asyncio.sleep(1)
+            except Exception as e:
+                print(f"  ERROR: fetch_messages() error - {e}")
+                break
 
     def update_chat(self):
-        line_list = []
-        for _ in range(200):
+        for _ in range(200):  # 최대 200개의 메시지를 한 번에 처리
             chat = self.chat_queue.dequeue_message()
             if chat is None:
                 break
-            label = QLabel(chat)
-            label.setWordWrap(True)
-            label.setStyleSheet("background-color: lightgrey; padding: 3px;")
-            line_list.append(label)
+            self.message_buffer.append(chat)
 
-        if line_list:
-            self.add_chat_messages(line_list)
+        if self.message_buffer:
+            self.add_chat_messages(self.message_buffer)
+            self.message_buffer = []
 
-    def add_chat_messages(self, line_list):
-        if self.chat_frame:
-            for line in line_list:
-                self.chat_layout.addWidget(line)
+    def add_chat_messages(self, messages):
+        if messages:
+            current_messages = self.chat_model.stringList()
+            current_messages.extend(messages)
 
-            # 레이아웃 강제 업데이트
-            self.chat_layout.update()
-            self.scroll_area.update()
-            self.chat_frame.update()
+            if len(current_messages) > self.max_messages:
+                current_messages = current_messages[-self.max_messages:]
 
-            # 이벤트 루프 업데이트
-            QApplication.processEvents()
+            self.chat_model.setStringList(current_messages)
+            QMetaObject.invokeMethod(self, "update_layout", Qt.QueuedConnection)
 
-            while self.chat_layout.count() > self.max_messages:
-                item = self.chat_layout.itemAt(0)
-                widget = item.widget()
-                if widget:
-                    widget.deleteLater()
-                self.chat_layout.removeItem(item)
-
-            self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
+    @Slot()
+    def update_layout(self):
+        self.chat_view.scrollToBottom()  # 스크롤을 제일 아래로 내림
+        self.chat_view.update()
 
     def closeEvent(self, event):
         self.message_thread.stop()
+        self.message_thread.join()
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.thread.join()
         event.accept()
@@ -116,86 +106,3 @@ if __name__ == "__main__":
     window = ChatApp(bid, bno)
     window.show()
     sys.exit(app.exec())
-# import asyncio
-# import threading
-# import tkinter as tk
-# from chat.queue import ChatQueue
-# from chat.message import MessageLoop
-
-
-# class ChatApp(tk.Tk):
-#     def __init__(self, bid, bno):
-#         super().__init__()
-#         self.chat_queue = ChatQueue()
-
-#         self.title("Chat Application")
-
-#         self.canvas = tk.Canvas(self, bg="white", width=400, height=300)
-#         self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-#         self.canvas.configure(yscrollcommand=self.scrollbar.set)
-
-#         self.chat_frame = tk.Frame(self.canvas)
-#         self.canvas.create_window((0, 0), window=self.chat_frame, anchor="nw")
-#         self.max_messages = 100
-
-#         self.scrollbar.pack(side="right", fill="y")
-#         self.canvas.pack(side="left", fill="both", expand=True)
-
-#         self.chat_frame.bind("<Configure>", self.on_frame_configure)
-
-#         self.message_loop = MessageLoop(bid=bid, bno=bno)
-#         self.message_loop.start()
-
-#         self.protocol("WM_DELETE_WINDOW", self.on_close)
-
-#         # Start the asyncio event loop in a separate thread
-#         self.loop = asyncio.new_event_loop()
-#         self.thread = threading.Thread(target=self.run_asyncio, args=(self.loop,))
-#         self.thread.start()
-
-#     def run_asyncio(self, loop):
-#         asyncio.set_event_loop(loop)
-#         loop.run_until_complete(self.fetch_messages())
-
-#     async def fetch_messages(self):
-#         while not self.message_loop.stop_event.is_set():
-#             await self.update_chat()
-#             await asyncio.sleep(1)
-
-#     async def update_chat(self):
-#         line_list = []
-#         for _ in range(200):
-#             chat = self.chat_queue.dequeue_message()
-#             if chat is None:
-#                 break
-#             line_list.append(
-#                 tk.Label(self.chat_frame, anchor="w", justify="left", text=chat, bg="lightgrey", wraplength=380)
-#             )
-
-#         if line_list:
-#             self.after(0, self.draw_chat_message, line_list)
-
-#     def draw_chat_message(self, line_list):
-#         if self.chat_frame.winfo_exists():
-#             for line in line_list:
-#                 line.pack(padx=10, pady=5, fill="x")
-#             # self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-#             self.canvas.after_idle(self.canvas.yview_moveto, (1.0,))
-
-#             # Check if we need to remove the oldest message
-#             while len(self.chat_frame.winfo_children()) > self.max_messages:
-#                 self.remove_oldest_message()
-
-#     def remove_oldest_message(self):
-#         if self.chat_frame.winfo_exists():
-#             oldest_message = self.chat_frame.winfo_children()[0]
-#             oldest_message.destroy()
-
-#     def on_frame_configure(self, event=None):
-#         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
-#     def on_close(self):
-#         self.message_loop.stop()
-#         self.loop.call_soon_threadsafe(self.loop.stop)
-#         self.thread.join()
-#         self.destroy()

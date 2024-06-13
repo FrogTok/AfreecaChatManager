@@ -7,6 +7,7 @@ class Bj :
         TITLE : str
         BJID : str
         CHPT : str
+    id : str
     broadcast : Broadcast
     station_no : str
     user_id: str

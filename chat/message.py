@@ -29,6 +29,9 @@ class MessageThread(threading.Thread):
         self.stop_event = threading.Event()
         self.ssl_context = self.create_ssl_context()
         self.loop = asyncio.new_event_loop()
+        self.websocket = None
+        self.ping_task = None
+        self.receive_task = None
 
     def run(self):
         asyncio.set_event_loop(self.loop)
@@ -36,7 +39,11 @@ class MessageThread(threading.Thread):
 
     def stop(self):
         self.stop_event.set()
-        self.loop.call_soon_threadsafe(self.loop.stop)
+        self.loop.call_soon_threadsafe(self.loop.create_task, self.wait_for_tasks())
+
+    async def wait_for_tasks(self):
+        tasks = [self.ping_task, self.receive_task]
+        await asyncio.wait(tasks)
 
     def create_ssl_context(self):
         ssl_context = ssl.create_default_context()
@@ -131,24 +138,24 @@ class MessageThread(threading.Thread):
         CONNECT_PACKET = f"{ESC}000100000600{F*3}16{F}"
         JOIN_PACKET = f"{ESC}0002{self.calculate_byte_size(CHATNO):06}00{F}{CHATNO}{F*5}"
         PING_PACKET = f"{ESC}000000000100{F}"
-
-        async with websockets.connect(
-            uri,
-            subprotocols=["chat"],
-            ssl=self.ssl_context,
-            ping_interval=None,
-        ) as websocket:
-            await websocket.send(CONNECT_PACKET)
+        try:
+            self.websocket = await websockets.connect(
+                uri,
+                subprotocols=["chat"],
+                ssl=self.ssl_context,
+                ping_interval=None,
+            )
+            await self.websocket.send(CONNECT_PACKET)
             self.chat_queue.enqueue_message("  연결 성공, 채팅방 정보 수신 대기중...")
             print("  연결 성공, 채팅방 정보 수신 대기중...")
             await asyncio.sleep(2)
-            await websocket.send(JOIN_PACKET)
+            await self.websocket.send(JOIN_PACKET)
 
             async def ping():
                 while not self.stop_event.is_set():
                     try:
                         await asyncio.sleep(60)  # 1분 = 60초
-                        await websocket.send(PING_PACKET)
+                        await self.websocket.send(PING_PACKET)
                     except Exception as e:
                         self.chat_queue.enqueue_message(f"  ERROR: ping() error - {e}")
                         print(f"  ERROR: ping() error - {e}")
@@ -157,17 +164,28 @@ class MessageThread(threading.Thread):
             async def receive_messages():
                 while not self.stop_event.is_set():
                     try:
-                        data = await websocket.recv()
+                        data = await self.websocket.recv()
                         self.decode_message(data)
                     except Exception as e:
                         self.chat_queue.enqueue_message(f"  ERROR: receive_messages() error - {e}")
                         print(f"  ERROR: receive_messages() error - {e}")
                         break
 
-            ping_task = asyncio.create_task(ping())
-            receive_task = asyncio.create_task(receive_messages())
+            self.ping_task = asyncio.create_task(ping())
+            self.receive_task = asyncio.create_task(receive_messages())
 
-            await asyncio.wait([ping_task, receive_task], return_when=asyncio.FIRST_COMPLETED)
+            done, pending = await asyncio.wait([self.ping_task, self.receive_task], return_when=asyncio.FIRST_COMPLETED)
+
+            for task in pending:
+                task.cancel()
+
+            await asyncio.gather(*pending, return_exceptions=True)
+            await self.websocket.close(reason="Client shutdown")
+            print("  INFO: 웹소켓 연결이 종료됐습니다.")
+        except RuntimeError as e:
+            self.chat_queue.enqueue_message(f"  ERROR: 웹소켓 런타임 오류 - {e}")
+            print(f"  ERROR: 웹소켓 런타임 오류 - {e}")
+            return
 
 if __name__ == "__main__":
     bid = "243000"
