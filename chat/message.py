@@ -1,8 +1,9 @@
 import threading
 import certifi
 import ssl
-import asyncio
 import websockets
+import time
+import asyncio
 from chat.constants import (
     CHAT_MESSAGE,
     ENTRY_AND_EXIT_MESSAGE,
@@ -18,7 +19,7 @@ from chat.queue import ChatQueue, MemberChatQueue
 SEPARATOR = "+" + "-" * 70 + "+"
 
 
-class MessageLoop(threading.Thread):
+class MessageThread(threading.Thread):
     def __init__(self, bid, bno):
         super().__init__()
         self.bid = bid
@@ -26,23 +27,17 @@ class MessageLoop(threading.Thread):
         self.chat_queue = ChatQueue()
         self.member_chat_queue = MemberChatQueue()
         self.stop_event = threading.Event()
-
-    # def start(self):
-    #     try:
-    #         loop = asyncio.get_running_loop()
-    #     except RuntimeError:
-    #         loop = asyncio.new_event_loop()
-    #         asyncio.set_event_loop(loop)
-    #     self.future = loop.run_in_executor(None, self.run)
+        self.ssl_context = self.create_ssl_context()
+        self.loop = asyncio.new_event_loop()
 
     def run(self):
-        ssl_context = self.create_ssl_context()
-        asyncio.run(self.connect_to_chat(ssl_context))
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_until_complete(self.connect_to_chat())
 
     def stop(self):
         self.stop_event.set()
+        self.loop.call_soon_threadsafe(self.loop.stop)
 
-    # SSL 컨텍스트 생성
     def create_ssl_context(self):
         ssl_context = ssl.create_default_context()
         ssl_context.load_verify_locations(certifi.where())
@@ -108,12 +103,10 @@ class MessageLoop(threading.Thread):
             # 채팅 뿐만 아니라 다른 메세지도 동시에 내려옵니다.
             pass
 
-    # 바이트 크기 계산
     def calculate_byte_size(self, string):
         return len(string.encode("utf-8")) + 6
 
-    # 채팅에 연결
-    async def connect_to_chat(self, ssl_context):
+    async def connect_to_chat(self):
         try:
             CHDOMAIN, CHATNO, FTK, TITLE, BJID, CHPT = get_player_live(self.bno, self.bid)
             print(
@@ -133,66 +126,58 @@ class MessageLoop(threading.Thread):
             print(f"  ERROR: API 호출 실패 - {e}")
             return
 
-        try:
-            async with websockets.connect(
-                f"wss://{CHDOMAIN}:{CHPT}/Websocket/{self.bid}",
-                subprotocols=["chat"],
-                ssl=ssl_context,
-                ping_interval=None,
-            ) as websocket:
-                # 최초 연결시 전달하는 패킷
-                CONNECT_PACKET = f"{ESC}000100000600{F*3}16{F}"
-                # 메세지를 내려받기 위해 보내는 패킷
-                JOIN_PACKET = f"{ESC}0002{self.calculate_byte_size(CHATNO):06}00{F}{CHATNO}{F*5}"
-                # 주기적으로 핑을 보내서 메세지를 계속 수신하는 패킷
-                PING_PACKET = f"{ESC}000000000100{F}"
+        uri = f"wss://{CHDOMAIN}:{CHPT}/Websocket/{self.bid}"
 
-                await websocket.send(CONNECT_PACKET)
-                self.chat_queue.enqueue_message("  연결 성공, 채팅방 정보 수신 대기중...")
-                print("  연결 성공, 채팅방 정보 수신 대기중...")
-                await asyncio.sleep(2)
-                await websocket.send(JOIN_PACKET)
+        CONNECT_PACKET = f"{ESC}000100000600{F*3}16{F}"
+        JOIN_PACKET = f"{ESC}0002{self.calculate_byte_size(CHATNO):06}00{F}{CHATNO}{F*5}"
+        PING_PACKET = f"{ESC}000000000100{F}"
 
-                async def ping():
-                    while not self.stop_event.is_set():
-                        try:
-                            # 5분동안 핑이 보내지지 않으면 소켓은 끊어집니다.
-                            await asyncio.sleep(60)  # 1분 = 60초
-                            await websocket.send(PING_PACKET)
-                        except asyncio.CancelledError:
-                            break
+        async with websockets.connect(
+            uri,
+            subprotocols=["chat"],
+            ssl=self.ssl_context,
+            ping_interval=None,
+        ) as websocket:
+            await websocket.send(CONNECT_PACKET)
+            self.chat_queue.enqueue_message("  연결 성공, 채팅방 정보 수신 대기중...")
+            print("  연결 성공, 채팅방 정보 수신 대기중...")
+            await asyncio.sleep(2)
+            await websocket.send(JOIN_PACKET)
 
-                async def receive_messages():
-                    while not self.stop_event.is_set():
-                        try:
-                            data = await websocket.recv()
-                            self.decode_message(data)
-                        except asyncio.CancelledError:
-                            break
+            async def ping():
+                while not self.stop_event.is_set():
+                    try:
+                        await asyncio.sleep(60)  # 1분 = 60초
+                        await websocket.send(PING_PACKET)
+                    except Exception as e:
+                        self.chat_queue.enqueue_message(f"  ERROR: ping() error - {e}")
+                        print(f"  ERROR: ping() error - {e}")
+                        break
 
-                tasks = [asyncio.create_task(receive_messages()), asyncio.create_task(ping())]
+            async def receive_messages():
+                while not self.stop_event.is_set():
+                    try:
+                        data = await websocket.recv()
+                        self.decode_message(data)
+                    except Exception as e:
+                        self.chat_queue.enqueue_message(f"  ERROR: receive_messages() error - {e}")
+                        print(f"  ERROR: receive_messages() error - {e}")
+                        break
 
-                done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            ping_task = asyncio.create_task(ping())
+            receive_task = asyncio.create_task(receive_messages())
 
-                for task in pending:
-                    task.cancel()
-
-                await asyncio.gather(*pending, return_exceptions=True)
-
-        except Exception as e:
-            self.chat_queue.enqueue_message(f"  ERROR: 웹소켓 연결 오류 - {e}")
-            print(f"  ERROR: 웹소켓 연결 오류 - {e}")
-            return
-            # if not self.stop_event.is_set():
-            #     self.chat_queue.enqueue_message("  재접속 시도중...")
-            #     print("  재접속 시도중...")
-            #     await asyncio.sleep(5)
-            #     self.connect_to_chat(ssl_context)
-
+            await asyncio.wait([ping_task, receive_task], return_when=asyncio.FIRST_COMPLETED)
 
 if __name__ == "__main__":
     bid = "243000"
     bno = get_bno(bid)
-    message_loop = MessageLoop(bid=bid, bno=bno)
-    message_loop.start()
-    message_loop.join()
+    websocket_thread = MessageThread(bid=bid, bno=bno)
+    websocket_thread.start()
+    
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        websocket_thread.stop()
+        websocket_thread.join()

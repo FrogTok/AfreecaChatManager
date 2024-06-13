@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon, QPixmap
 from requests import HTTPError
 from chat.queue import ChatQueue
-from chat.message import MessageLoop
+from chat.message import MessageThread
 from chat.requests import download_image, get_bno
 import sys
 
@@ -43,10 +43,10 @@ class ChatApp(QMainWindow):
         self.chat_frame.setLayout(self.chat_layout)
         self.scroll_area.setWidget(self.chat_frame)
 
-        self.max_messages = 1000000
+        self.max_messages = 10000
 
-        self.message_loop = MessageLoop(bid=bid, bno=bno)
-        self.message_loop.start()
+        self.message_thread = MessageThread(bid=bid, bno=bno)
+        self.message_thread.start()
 
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.run_asyncio, args=(self.loop,))
@@ -63,7 +63,7 @@ class ChatApp(QMainWindow):
         loop.run_until_complete(self.fetch_messages())
 
     async def fetch_messages(self):
-        while not self.message_loop.stop_event.is_set():
+        while not self.message_thread.stop_event.is_set():
             await asyncio.sleep(1)
 
     def update_chat(self):
@@ -93,8 +93,6 @@ class ChatApp(QMainWindow):
             # 이벤트 루프 업데이트
             QApplication.processEvents()
 
-            self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
-
             while self.chat_layout.count() > self.max_messages:
                 item = self.chat_layout.itemAt(0)
                 widget = item.widget()
@@ -102,8 +100,10 @@ class ChatApp(QMainWindow):
                     widget.deleteLater()
                 self.chat_layout.removeItem(item)
 
+            self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
+
     def closeEvent(self, event):
-        self.message_loop.stop()
+        self.message_thread.stop()
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.thread.join()
         event.accept()
