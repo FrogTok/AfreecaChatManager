@@ -3,6 +3,8 @@ from chat.requests import get_bno
 from apps.main_chat import ChatApp
 import sys
 
+from dto import Bj
+
 
 class BIDInputApp(QWidget):
     def __init__(self):
@@ -26,7 +28,8 @@ class BIDInputApp(QWidget):
     def check_broadcast(self):
         bid = self.bid_entry.text()
         if bid:
-            bno = get_bno(bid)
+            bj = Bj(id=bid)
+            bno = get_bno(bj.bid)
             if bno:
                 self.close()  # bid 입력 창 닫기
                 self.start_chat_loop(bid, bno)

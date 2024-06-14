@@ -1,4 +1,5 @@
 import requests
+import traceback
 
 
 def get_bno(bid):
@@ -27,10 +28,12 @@ def get_bno(bid):
         return None
 
     except requests.RequestException as e:
-        print(f"  ERROR: API 요청 중 오류 발생: {e}")
+        tb = traceback.format_exc()
+        print(f"  ERROR: API 요청 중 오류 발생: {e}\n {tb}")
         return None
     except KeyError as e:
-        print(f"  ERROR: 응답에서 필요한 데이터를 찾을 수 없습니다: {e}")
+        tb = traceback.format_exc()
+        print(f"  ERROR: 응답에서 필요한 데이터를 찾을 수 없습니다: {e}\n {tb}")
         return None
 
 

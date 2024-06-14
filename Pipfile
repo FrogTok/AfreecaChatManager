@@ -8,6 +8,7 @@ requests = "*"
 websockets = "*"
 selenium = "*"
 pyside6 = "*"
+pydantic = "*"
 
 [dev-packages]
 

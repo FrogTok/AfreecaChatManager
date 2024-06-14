@@ -1,7 +1,7 @@
 import asyncio
 import os
 import threading
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QScrollArea, QWidget, QLabel, QListView
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QListView
 from PySide6.QtCore import Qt, QTimer, QMetaObject, Slot, QStringListModel
 from PySide6.QtGui import QIcon, QPixmap
 from requests import HTTPError
@@ -81,7 +81,7 @@ class ChatApp(QMainWindow):
             current_messages.extend(messages)
 
             if len(current_messages) > self.max_messages:
-                current_messages = current_messages[-self.max_messages:]
+                current_messages = current_messages[-self.max_messages :]
 
             self.chat_model.setStringList(current_messages)
             QMetaObject.invokeMethod(self, "update_layout", Qt.QueuedConnection)
