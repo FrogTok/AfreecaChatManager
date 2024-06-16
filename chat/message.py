@@ -15,15 +15,15 @@ from chat.constants import (
 )
 from chat.requests import get_bno, get_player_live
 from chat.queue import ChatQueue, MemberChatQueue
-
+from dto import Bj, Broadcast
 SEPARATOR = "+" + "-" * 70 + "+"
 
 
 class MessageThread(threading.Thread):
-    def __init__(self, bid, bno):
+    def __init__(self, bj: Bj, broadcast: Broadcast):
         super().__init__()
-        self.bid = bid
-        self.bno = bno
+        self.bj = bj
+        self.broadcast = broadcast
         self.chat_queue = ChatQueue()
         self.member_chat_queue = MemberChatQueue()
         self.stop_event = threading.Event()
@@ -115,7 +115,7 @@ class MessageThread(threading.Thread):
 
     async def connect_to_chat(self):
         try:
-            CHDOMAIN, CHATNO, FTK, TITLE, BJID, CHPT = get_player_live(self.bno, self.bid)
+            CHDOMAIN, CHATNO, FTK, TITLE, BJID, CHPT = get_player_live(self.broadcast.broad_no, self.bj.id)
             print(
                 f"{SEPARATOR}\n"
                 f"  CHDOMAIN: {CHDOMAIN}\n  CHATNO: {CHATNO}\n  FTK: {FTK}\n"
