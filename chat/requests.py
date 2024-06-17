@@ -2,7 +2,7 @@ import requests
 import traceback
 from dto import Bj, Broadcast
 
-def get_bj(bid) -> Bj:
+def request_bj_data(bid) -> Bj:
     url = f"https://st.afreecatv.com/api/get_station_status.php?szBjId=${bid}"
     # headers = {
     #     # 브라우저로만 접속할수있게 제한한듯? 이거 없으면 404에러뜸
@@ -74,11 +74,11 @@ def get_bno(bid):
         return None
 
 
-def set_broadcast(broadcast: Broadcast, bid):
+def reqest_broadcast_data(broad_no: int, bj_id:str):
     url = "https://live.afreecatv.com/afreeca/player_live_api.php"
     data = {
-        "bid": bid,
-        "bno": broadcast.broad_no,
+        "bid": bj_id,
+        "bno": broad_no,
         "type": "live",
         "confirm_adult": "true",
         "player_type": "html5",
@@ -90,16 +90,18 @@ def set_broadcast(broadcast: Broadcast, bid):
     }
 
     try:
-        response = requests.post(f"{url}?bjid={bid}", data=data)
+        response = requests.post(f"{url}?bjid={bj_id}", data=data)
         response.raise_for_status()  # HTTP 요청 에러를 확인하고, 에러가 있을 경우 예외를 발생시킵니다.
         res = response.json()
-
-        broadcast.CHDOMAIN = res["CHANNEL"]["CHDOMAIN"].lower()
-        broadcast.CHATNO = res["CHANNEL"]["CHATNO"]
-        broadcast.FTK = res["CHANNEL"]["FTK"]
-        broadcast.TITLE = res["CHANNEL"]["TITLE"]
-        broadcast.BJID = res["CHANNEL"]["BJID"]
-        broadcast.CHPT = str(int(res["CHANNEL"]["CHPT"]) + 1)
+        broadcast = Broadcast(
+            broad_no=broad_no, 
+            CHDOMAIN = res["CHANNEL"]["CHDOMAIN"].lower(), 
+            CHATNO = res["CHANNEL"]["CHATNO"], 
+            FTK = res["CHANNEL"]["FTK"], 
+            TITLE = res["CHANNEL"]["TITLE"], 
+            BJID = res["CHANNEL"]["BJID"], 
+            CHPT = str(int(res["CHANNEL"]["CHPT"]) + 1)
+        )
 
         return broadcast
 

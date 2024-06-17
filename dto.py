@@ -2,12 +2,12 @@ from pydantic import BaseModel
 
 class Broadcast(BaseModel):
     broad_no: int
-    CHDOMAIN: str = None
-    CHATNO: str = None
-    FTK: str = None
-    TITLE: str = None
-    BJID: str = None
-    CHPT: str = None
+    CHDOMAIN: str
+    CHATNO: str
+    FTK: str
+    TITLE: str
+    BJID: str
+    CHPT: str
 
 
 class Bj(BaseModel):

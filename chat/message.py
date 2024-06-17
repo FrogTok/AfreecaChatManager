@@ -13,17 +13,18 @@ from chat.constants import (
     POONG_MESSAGE,
     SUBSCRIBE_PERIOD_MESSAGE,
 )
-from chat.requests import get_bno, set_broadcast, get_bj
+from chat.requests import get_bno, reqest_broadcast_data, request_bj_data
 from chat.queue import ChatQueue, MemberChatQueue
-from dto import Bj, Broadcast
+from dto import Bj
 SEPARATOR = "+" + "-" * 70 + "+"
 
 
 class MessageThread(threading.Thread):
-    def __init__(self, bj: Bj, broadcast: Broadcast):
+    def __init__(self, bj: Bj, broad_no: int):
         super().__init__()
         self.bj = bj
-        self.broadcast = broadcast
+        self.broadcast = reqest_broadcast_data(broad_no, bj.id)
+
         self.chat_queue = ChatQueue()
         self.member_chat_queue = MemberChatQueue()
         self.stop_event = threading.Event()
@@ -115,7 +116,7 @@ class MessageThread(threading.Thread):
 
     async def connect_to_chat(self):
         try:
-            set_broadcast(self.broadcast, self.bj.id)
+            
             print(
                 f"{SEPARATOR}\n"
                 f"  CHDOMAIN: {self.broadcast.CHDOMAIN}\n  CHATNO: {self.broadcast.CHATNO}\n  FTK: {self.broadcast.FTK}\n"
@@ -190,7 +191,7 @@ class MessageThread(threading.Thread):
 if __name__ == "__main__":
     bid = "243000"
     bno = get_bno(bid)
-    websocket_thread = MessageThread(get_bj(bid), broadcast=Broadcast(broad_no=bno))
+    websocket_thread = MessageThread(bj=request_bj_data(bid), broad_no=bno)
     websocket_thread.start()
     
     try:

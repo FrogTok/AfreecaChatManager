@@ -7,8 +7,8 @@ from PySide6.QtGui import QIcon, QPixmap
 from requests import HTTPError
 from chat.queue import ChatQueue
 from chat.message import MessageThread
-from chat.requests import download_image, get_bj
-from dto import Bj, Broadcast
+from chat.requests import download_image, request_bj_data
+from dto import Bj
 import sys
 
 
@@ -16,11 +16,10 @@ from utils import get_root_directory_path
 
 
 class ChatApp(QMainWindow):
-    def __init__(self, bj: Bj, broadcast: Broadcast):
+    def __init__(self, bj: Bj, broad_no: int):
         super().__init__()
         self.chat_queue = ChatQueue()
-
-        self.setWindowTitle(f"{bj.user_nick} 채팅매니저")
+        self.setWindowTitle(f"{bj.user_nick} 채팅 매니저")
         self.resize(600, 400)
         try:
             image_data = download_image(f"https://profile.img.afreecatv.com/LOGO/{bj.id[:2]}/{bj.id}/{bj.id}.jpg")
@@ -43,7 +42,7 @@ class ChatApp(QMainWindow):
         self.max_messages = 10000
         self.message_buffer = []
 
-        self.message_thread = MessageThread(bj, broadcast)
+        self.message_thread = MessageThread(bj, broad_no)
         self.message_thread.start()
 
         self.loop = asyncio.new_event_loop()
@@ -102,7 +101,7 @@ class ChatApp(QMainWindow):
 
 if __name__ == "__main__":
     bid = "243000"
-    bj = get_bj(bid)
+    bj = request_bj_data(bid)
     app = QApplication(sys.argv)
     window = ChatApp(bj)
     window.show()
