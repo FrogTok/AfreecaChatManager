@@ -7,7 +7,7 @@ from PySide6.QtGui import QIcon, QPixmap
 from requests import HTTPError
 from chat.queue import ChatQueue
 from chat.message import MessageThread
-from chat.requests import download_image, request_bj_data
+from chat.requests import download_image, request_bj
 from dto import Bj
 import sys
 
@@ -101,7 +101,7 @@ class ChatApp(QMainWindow):
 
 if __name__ == "__main__":
     bid = "243000"
-    bj = request_bj_data(bid)
+    bj = request_bj(bid)
     app = QApplication(sys.argv)
     window = ChatApp(bj)
     window.show()

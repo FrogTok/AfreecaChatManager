@@ -2,7 +2,7 @@ import requests
 import traceback
 from dto import Bj, Broadcast
 
-def request_bj_data(bid) -> Bj:
+def request_bj(bid) -> Bj:
     url = f"https://st.afreecatv.com/api/get_station_status.php?szBjId=${bid}"
     # headers = {
     #     # 브라우저로만 접속할수있게 제한한듯? 이거 없으면 404에러뜸
@@ -74,7 +74,7 @@ def get_bno(bid):
         return None
 
 
-def reqest_broadcast_data(broad_no: int, bj_id:str):
+def reqest_broadcast(broad_no: int, bj_id:str):
     url = "https://live.afreecatv.com/afreeca/player_live_api.php"
     data = {
         "bid": bj_id,

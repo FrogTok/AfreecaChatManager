@@ -13,7 +13,7 @@ from chat.constants import (
     POONG_MESSAGE,
     SUBSCRIBE_PERIOD_MESSAGE,
 )
-from chat.requests import get_bno, reqest_broadcast_data, request_bj_data
+from chat.requests import get_bno, reqest_broadcast, request_bj
 from chat.queue import ChatQueue, MemberChatQueue
 from dto import Bj
 SEPARATOR = "+" + "-" * 70 + "+"
@@ -23,7 +23,7 @@ class MessageThread(threading.Thread):
     def __init__(self, bj: Bj, broad_no: int):
         super().__init__()
         self.bj = bj
-        self.broadcast = reqest_broadcast_data(broad_no, bj.id)
+        self.broadcast = reqest_broadcast(broad_no, bj.id)
 
         self.chat_queue = ChatQueue()
         self.member_chat_queue = MemberChatQueue()
@@ -191,7 +191,7 @@ class MessageThread(threading.Thread):
 if __name__ == "__main__":
     bid = "243000"
     bno = get_bno(bid)
-    websocket_thread = MessageThread(bj=request_bj_data(bid), broad_no=bno)
+    websocket_thread = MessageThread(bj=request_bj(bid), broad_no=bno)
     websocket_thread.start()
     
     try:

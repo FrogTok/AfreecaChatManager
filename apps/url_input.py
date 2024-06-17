@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QMessageBox
 from PySide6.QtGui import QIcon
-from chat.requests import get_bno, request_bj_data
+from chat.requests import get_bno, request_bj
 from utils import get_root_directory_path
 from apps.main_chat import ChatApp
 import sys
@@ -33,7 +33,7 @@ class BIDInputApp(QWidget):
     def check_broadcast(self):
         bid = self.bid_entry.text()
         if bid:
-            bj : Bj = request_bj_data(bid)
+            bj : Bj = request_bj(bid)
             broad_no = get_bno(bj.id)
             if broad_no:
                 self.close()  # bid 입력 창 닫기
