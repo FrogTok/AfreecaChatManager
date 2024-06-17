@@ -13,7 +13,7 @@ from chat.constants import (
     POONG_MESSAGE,
     SUBSCRIBE_PERIOD_MESSAGE,
 )
-from chat.requests import get_bno, get_player_live
+from chat.requests import get_bno, set_broadcast, get_bj
 from chat.queue import ChatQueue, MemberChatQueue
 from dto import Bj, Broadcast
 SEPARATOR = "+" + "-" * 70 + "+"
@@ -115,17 +115,17 @@ class MessageThread(threading.Thread):
 
     async def connect_to_chat(self):
         try:
-            CHDOMAIN, CHATNO, FTK, TITLE, BJID, CHPT = get_player_live(self.broadcast.broad_no, self.bj.id)
+            set_broadcast(self.broadcast, self.bj.id)
             print(
                 f"{SEPARATOR}\n"
-                f"  CHDOMAIN: {CHDOMAIN}\n  CHATNO: {CHATNO}\n  FTK: {FTK}\n"
-                f"  TITLE: {TITLE}\n  BJID: {BJID}\n  CHPT: {CHPT}\n"
+                f"  CHDOMAIN: {self.broadcast.CHDOMAIN}\n  CHATNO: {self.broadcast.CHATNO}\n  FTK: {self.broadcast.FTK}\n"
+                f"  TITLE: {self.broadcast.TITLE}\n  BJID: {self.broadcast.BJID}\n  CHPT: {self.broadcast.CHPT}\n"
                 f"{SEPARATOR}"
             )
             self.chat_queue.enqueue_message(
                 f"{SEPARATOR}\n"
-                f"  CHDOMAIN: {CHDOMAIN}\n  CHATNO: {CHATNO}\n  FTK: {FTK}\n"
-                f"  TITLE: {TITLE}\n  BJID: {BJID}\n  CHPT: {CHPT}\n"
+                f"  CHDOMAIN: {self.broadcast.CHDOMAIN}\n  CHATNO: {self.broadcast.CHATNO}\n  FTK: {self.broadcast.FTK}\n"
+                f"  TITLE: {self.broadcast.TITLE}\n  BJID: {self.broadcast.BJID}\n  CHPT: {self.broadcast.CHPT}\n"
                 f"{SEPARATOR}"
             )
         except Exception as e:
@@ -133,10 +133,10 @@ class MessageThread(threading.Thread):
             print(f"  ERROR: API 호출 실패 - {e}")
             return
 
-        uri = f"wss://{CHDOMAIN}:{CHPT}/Websocket/{self.bid}"
+        uri = f"wss://{self.broadcast.CHDOMAIN}:{self.broadcast.CHPT}/Websocket/{self.bj.id}"
 
         CONNECT_PACKET = f"{ESC}000100000600{F*3}16{F}"
-        JOIN_PACKET = f"{ESC}0002{self.calculate_byte_size(CHATNO):06}00{F}{CHATNO}{F*5}"
+        JOIN_PACKET = f"{ESC}0002{self.calculate_byte_size(self.broadcast.CHATNO):06}00{F}{self.broadcast.CHATNO}{F*5}"
         PING_PACKET = f"{ESC}000000000100{F}"
         try:
             self.websocket = await websockets.connect(
@@ -190,7 +190,7 @@ class MessageThread(threading.Thread):
 if __name__ == "__main__":
     bid = "243000"
     bno = get_bno(bid)
-    websocket_thread = MessageThread(bid=bid, bno=bno)
+    websocket_thread = MessageThread(get_bj(bid), broadcast=Broadcast(broad_no=bno))
     websocket_thread.start()
     
     try:

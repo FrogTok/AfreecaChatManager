@@ -25,8 +25,7 @@ def get_bj(bid) -> Bj:
 
         result = res["RESULT"]
         if result and result == 1:
-            bj = Bj.parse_raw(result["DATA"])
-            bj.id = bid
+            bj = Bj(id=bid, **res["DATA"])
             return bj
         return None
 
@@ -75,11 +74,11 @@ def get_bno(bid):
         return None
 
 
-def get_player_live(bno, bid):
+def set_broadcast(broadcast: Broadcast, bid):
     url = "https://live.afreecatv.com/afreeca/player_live_api.php"
     data = {
         "bid": bid,
-        "bno": bno,
+        "bno": broadcast.broad_no,
         "type": "live",
         "confirm_adult": "true",
         "player_type": "html5",
@@ -95,14 +94,14 @@ def get_player_live(bno, bid):
         response.raise_for_status()  # HTTP 요청 에러를 확인하고, 에러가 있을 경우 예외를 발생시킵니다.
         res = response.json()
 
-        CHDOMAIN = res["CHANNEL"]["CHDOMAIN"].lower()
-        CHATNO = res["CHANNEL"]["CHATNO"]
-        FTK = res["CHANNEL"]["FTK"]
-        TITLE = res["CHANNEL"]["TITLE"]
-        BJID = res["CHANNEL"]["BJID"]
-        CHPT = str(int(res["CHANNEL"]["CHPT"]) + 1)
+        broadcast.CHDOMAIN = res["CHANNEL"]["CHDOMAIN"].lower()
+        broadcast.CHATNO = res["CHANNEL"]["CHATNO"]
+        broadcast.FTK = res["CHANNEL"]["FTK"]
+        broadcast.TITLE = res["CHANNEL"]["TITLE"]
+        broadcast.BJID = res["CHANNEL"]["BJID"]
+        broadcast.CHPT = str(int(res["CHANNEL"]["CHPT"]) + 1)
 
-        return CHDOMAIN, CHATNO, FTK, TITLE, BJID, CHPT
+        return broadcast
 
     except requests.RequestException as e:
         print(f"  ERROR: API 요청 중 오류 발생: {e}")

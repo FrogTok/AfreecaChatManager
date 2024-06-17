@@ -20,7 +20,7 @@ class ChatApp(QMainWindow):
         super().__init__()
         self.chat_queue = ChatQueue()
 
-        self.setWindowTitle("아프리카 채팅매니저")
+        self.setWindowTitle(f"{bj.user_nick} 채팅매니저")
         self.resize(600, 400)
         try:
             image_data = download_image(f"https://profile.img.afreecatv.com/LOGO/{bj.id[:2]}/{bj.id}/{bj.id}.jpg")
@@ -91,7 +91,6 @@ class ChatApp(QMainWindow):
     @Slot()
     def update_layout(self):
         self.chat_view.scrollToBottom()  # 스크롤을 제일 아래로 내림
-        self.chat_view.update()
 
     def closeEvent(self, event):
         self.message_thread.stop()
