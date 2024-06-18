@@ -16,6 +16,7 @@ from chat.constants import (
 from chat.requests import get_bno, reqest_broadcast, request_bj
 from chat.queue import ChatQueue, MemberChatQueue
 from dto import Bj
+
 SEPARATOR = "+" + "-" * 70 + "+"
 
 
@@ -116,7 +117,7 @@ class MessageThread(threading.Thread):
 
     async def connect_to_chat(self):
         try:
-            
+
             print(
                 f"{SEPARATOR}\n"
                 f"  CHDOMAIN: {self.broadcast.CHDOMAIN}\n  CHATNO: {self.broadcast.CHATNO}\n  FTK: {self.broadcast.FTK}\n"
@@ -175,7 +176,9 @@ class MessageThread(threading.Thread):
             self.ping_task = asyncio.create_task(ping())
             self.receive_task = asyncio.create_task(receive_messages())
 
-            done, pending = await asyncio.wait([self.ping_task, self.receive_task], return_when=asyncio.FIRST_COMPLETED)
+            done, pending = await asyncio.wait(
+                [self.ping_task, self.receive_task], return_when=asyncio.FIRST_COMPLETED
+            )
 
             for task in pending:
                 task.cancel()
@@ -188,12 +191,13 @@ class MessageThread(threading.Thread):
             print(f"  ERROR: 웹소켓 런타임 오류 - {e}")
             return
 
+
 if __name__ == "__main__":
     bid = "243000"
     bno = get_bno(bid)
     websocket_thread = MessageThread(bj=request_bj(bid), broad_no=bno)
     websocket_thread.start()
-    
+
     try:
         while True:
             time.sleep(1)
