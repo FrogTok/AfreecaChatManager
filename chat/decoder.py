@@ -5,24 +5,34 @@ from chat.constants import (
     POONG_MESSAGE,
     SUBSCRIBE_PERIOD_MESSAGE,
 )
+from pydantic import BaseModel
+
+class Message(BaseModel):
+    origin_messages : list
+
+class ChatMessage(Message):
+    user_id: str
+    user_nickname: str
+    comment: str
 
 
 class MessageDecoder:
     @classmethod
-    def decode(cls, bytes) -> str:
+    def decode(cls, bytes) -> Message:
         parts = bytes.split(b"\x0c")
         messages = [part.decode("utf-8") for part in parts]
         print(messages)
         if messages[0].find(CHAT_MESSAGE) != -1:
+            # 채팅
             return cls._decode_chat_message(messages)
         elif messages[0].find(ENTRY_AND_EXIT_MESSAGE) != -1 and messages[1] == "1":
             # 입장
-            pass
+            return cls._decode_entry_message(messages)
         elif messages[0].find(ENTRY_AND_EXIT_MESSAGE) != -1 and messages[1] == "-1":
             # ['\x1b\t000400004100', '-1', 'kywuni', 'Snowpiano', '2', '1', '606208|33554432', ''] 강퇴
             # ['\x1b\t000400004200', '-1', 'ekdms0405', '널징', '1', '-1', '606752|33554432', ''] 일반 퇴장
             # 퇴장 message[2]는 아이디, message[3]은 닉네임
-            
+
             pass
         elif messages[0].find(SUBSCRIBE_PERIOD_MESSAGE) != -1:
             # message[1]이 닉네임, message[2]에 'fw=1'이런식으로 구독 개월수 나옴. 'fw=-1'이면 건빵
@@ -72,8 +82,16 @@ class MessageDecoder:
         # message[6]이 닉네임
         # message[7]이 USERLEVEL 코드
         # message[8]이 구독 개월수
-        user_id, comment, user_nickname = messages[2], messages[1], messages[6]
-        return f"{user_nickname}[{user_id}] - {comment}"
+        chat_message = ChatMessage(origin_messages=messages, user_id=messages[2], user_nickname=messages[6], comment=messages[1])
+        return chat_message
+        # return f"{user_nickname}[{user_id}] - {comment}"
+
+    @classmethod
+    def _decode_entry_message(cls, messages: list) -> str:
+        # ['\x1b\t000400003800', '1', 'kkdhun20021', '믜매', '537477120|32768', '']
+        # 입장
+        user_id, user_nickname, user_lelvel = messages[2], messages[3], messages[4]
+        return 
 
 
 # 도전미션 50개 후원
