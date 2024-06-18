@@ -15,6 +15,7 @@ from chat.constants import (
 )
 from chat.requests import get_bno, reqest_broadcast, request_bj
 from chat.queue import ChatQueue, MemberChatQueue
+from chat.decoder import MessageDecoder
 from dto import Bj
 
 SEPARATOR = "+" + "-" * 70 + "+"
@@ -167,7 +168,9 @@ class MessageThread(threading.Thread):
                 while not self.stop_event.is_set():
                     try:
                         data = await self.websocket.recv()
-                        self.decode_message(data)
+                        message = MessageDecoder.decode(data)
+                        self.chat_queue.enqueue_message(message)
+                        # self.decode_message(data)
                     except Exception as e:
                         self.chat_queue.enqueue_message(f"  ERROR: receive_messages() error - {e}")
                         print(f"  ERROR: receive_messages() error - {e}")

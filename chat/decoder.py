@@ -22,6 +22,7 @@ class MessageDecoder:
             # ['\x1b\t000400004100', '-1', 'kywuni', 'Snowpiano', '2', '1', '606208|33554432', ''] 강퇴
             # ['\x1b\t000400004200', '-1', 'ekdms0405', '널징', '1', '-1', '606752|33554432', ''] 일반 퇴장
             # 퇴장 message[2]는 아이디, message[3]은 닉네임
+            
             pass
         elif messages[0].find(SUBSCRIBE_PERIOD_MESSAGE) != -1:
             # message[1]이 닉네임, message[2]에 'fw=1'이런식으로 구독 개월수 나옴. 'fw=-1'이면 건빵
@@ -72,7 +73,7 @@ class MessageDecoder:
         # message[7]이 USERLEVEL 코드
         # message[8]이 구독 개월수
         user_id, comment, user_nickname = messages[2], messages[1], messages[6]
-        return f"| {user_nickname}[{user_id}] - {comment}"
+        return f"{user_nickname}[{user_id}] - {comment}"
 
 
 # 도전미션 50개 후원
